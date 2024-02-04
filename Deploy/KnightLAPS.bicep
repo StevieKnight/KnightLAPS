@@ -15,11 +15,11 @@ param KnightLAPSAppName string
 param FunctionAppServicePlanSKU string = 'Y1'
 
 @description('Provide a name for the 1Password Connect Server e.g. 1passwordconnect.azurewebsites.net')
-param OnePasswordConnectHost string 
+param OnePasswordConnectHost string
 
 @description('Provide a AuthToken for the 1Password Connect Server')
 @secure()
-param OnePasswordConnectAuthToken string 
+param OnePasswordConnectAuthToken string
 
 
 @description('Provide a name form the 1Password Vault UUID for save the passwords')
@@ -181,7 +181,7 @@ resource FunctionApp 'Microsoft.Web/sites@2020-12-01' = {
           name: 'KeyVaultHost'
           value: KeyVaultHostname
         }
-         
+
       ]
     }
   }
@@ -245,7 +245,12 @@ resource OnePasswordAuthTokenSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-0
   }
 }
 
-
-
-
+// Add ZipDeploy for Function App
+resource FunctionAppZipDeploy 'Microsoft.Web/sites/extensions@2015-08-01' = {
+  parent: FunctionApp
+  name: 'ZipDeploy'
+  properties: {
+      packageUri: 'https://github.com/StevieKnight/KnightLAPS/blob/main/Packages/KnigthLAPS-Function-APP-current.zip'
+  }
+}
 
