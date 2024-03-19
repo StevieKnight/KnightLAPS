@@ -7,7 +7,7 @@ The Azure Function from KnightLAPS solution for processing the client new passwo
 This Azure Function is a part of KnightLAPS solution. It handel the client request. When
 a new request come in, than check the function the information from device. A distinction
 is made between Azure join devices and devices that are standalone. After the device check
-the function generates new password and save it in 1Password keyvault and send the 
+the function generates new password and save it in 1Password keyvault and send the
 password to device.
 
 .NOTES
@@ -29,11 +29,12 @@ param(
     $TriggerMetadata
 )
 # Define default variable
+Write-Information -MessageData "Reeee"
 $TrustDevice = $false
 $Exception = $false
 $StatusCode = [HttpStatusCode]::OK
 $body = ''
-
+$Request
 #1Password settings
 $KeyVaultHost = $env:KeyVaultHost
 $1PasswordHost = $env:OnePasswordHost
@@ -44,11 +45,11 @@ $1PasswordAccessTokenName = $env:OnePasswordAccessTokenName
 $PWAllowedCharacters = $env:PWAllowedCharacters
 $PWMinAge = $env:PWAgeinDay
 
-
+Write-Output "Hallos"
 if (-not [string]::IsNullOrEmpty($Request.Body)) {
-   
+
     #
-    # Get authorization token for local deployment (MSAL) or 
+    # Get authorization token for local deployment (MSAL) or
     # azure plattform with (MSI). Check in which environment
     # the function currently being excuted.
     #
@@ -57,34 +58,34 @@ if (-not [string]::IsNullOrEmpty($Request.Body)) {
     try {
          # WEBSITE_INSTANCE_ID is only available in azure
         if ([string]::IsNullOrEmpty($env:WEBSITE_INSTANCE_ID)) {
-            Write-Output 'Azure function running in local deployment' 
+            Write-Output 'Azure function running in local deployment'
             if (Get-Module -ListAvailable -Name MSAL.PS) {
                 # Azure App-registation login data
                 $connectionDetails = @{
-                    'TenantId'     = $env:TenantId 
+                    'TenantId'     = $env:TenantId
                     'ClientId'     = $env:ClientId
                     'ClientSecret' = $env:ClientSecret | ConvertTo-SecureString -AsPlainText -Force
                 }
-                # Vault token    
-                $AZTokenVault = Get-MsalToken @connectionDetails -Scopes 'https://vault.azure.net/.default' 
-                $AuthHeaderVault = @{ Authorization = $AZTokenVault.CreateAuthorizationHeader() } 
-                # Graph token                            
-                $AZTokenVault = Get-MsalToken @connectionDetails -Scopes 'https://graph.microsoft.com/.default' 
-                $AuthHeaderGraph = @{ Authorization = $AZTokenVault.CreateAuthorizationHeader() } 
+                # Vault token
+                $AZTokenVault = Get-MsalToken @connectionDetails -Scopes 'https://vault.azure.net/.default'
+                $AuthHeaderVault = @{ Authorization = $AZTokenVault.CreateAuthorizationHeader() }
+                # Graph token
+                $AZTokenVault = Get-MsalToken @connectionDetails -Scopes 'https://graph.microsoft.com/.default'
+                $AuthHeaderGraph = @{ Authorization = $AZTokenVault.CreateAuthorizationHeader() }
             }
             else {
-                # No MSAL module installed 
+                # No MSAL module installed
                 Write-Host 'Module MSAL.ps does not exist. Install from https://www.powershellgallery.com/packages/MSAL.PS'
                 $StatusCode = [HttpStatusCode]::Forbidden
                 $body = 'Azure function does not have all required module available.'
             }
-            
+
         }
         else {
-            Write-Output 'Azure function running on Azure plattform' 
-            # Check whether MSI is activated 
+            Write-Output 'Azure function running on Azure plattform'
+            # Check whether MSI is activated
             if ($env:MSI_SECRET -and $env:MSI_ENDPOINT) {
-                Write-Output 'MSI is activated' 
+                Write-Output 'MSI is activated'
                 $MSIEndpoint = $env:MSI_ENDPOINT
                 $MSISecret = $env:MSI_SECRET
                 $APIVersion = '2017-09-01'
@@ -101,13 +102,13 @@ if (-not [string]::IsNullOrEmpty($Request.Body)) {
                 $AuthURI = $MSIEndpoint + "?resource=$($ResourceURI)&api-version=$($APIVersion)"
                 $Response = Invoke-RestMethod -Uri $AuthURI -Method 'Get' -Headers @{ 'Secret' = "$($MSISecret)" }
                 $AuthHeaderGraph = @{ 'Authorization' = "Bearer $($Response.access_token)"
-                'ExpiresOn' = $Response.expires_on }   
+                'ExpiresOn' = $Response.expires_on }
 
             }
             else {
                 $AFError = 'No Managed Service Identit activated'
                 Write-Warning $AFError
-                $StatusCode = [HttpStatusCode]::ServiceUnavailable 
+                $StatusCode = [HttpStatusCode]::ServiceUnavailable
                 $body = "503 Service Unavailable: $AFError"
             }
         }
@@ -115,10 +116,10 @@ if (-not [string]::IsNullOrEmpty($Request.Body)) {
     catch {
         $AFError = $_.Exception.Message
         Write-Warning "503 Service Unavailable: $AFError"
-        $StatusCode = [HttpStatusCode]::ServiceUnavailable 
+        $StatusCode = [HttpStatusCode]::ServiceUnavailable
         $body = '503 Service Unavailable: Please ask your trusted administrator'
         $Exception = $true
-        
+
     }
 
     #
@@ -136,8 +137,8 @@ if (-not [string]::IsNullOrEmpty($Request.Body)) {
     $DeviceSN       = $Request.Body.DeviceSN
     #$DeviceSuffix  = $Request.Body.DeviceSuffix
     #$OverrideAllow = $Request.Body.Override
-    
-    # Password length from device has priority  
+
+    # Password length from device has priority
     $PWLength = $Request.Body.PasswordLength
     if ([string]::IsNullOrEmpty($PWLength)){
         Write-Output "$($DeviceName) Use the default password length of $($env:PWLength) characters"
@@ -145,42 +146,42 @@ if (-not [string]::IsNullOrEmpty($Request.Body)) {
     } else {
         Write-Output "$($DeviceName) Use the device request password length of $($PWLength) characters"
     }
-    
+
 
     #
-    # If the Entra ID joined device, then 
+    # If the Entra ID joined device, then
     # the Entra device ID must be set.
     #
     if ([string]::IsNullOrEmpty($EntraDeviceID)) {
         #Entra device id is not set
         Write-Output "$($DeviceName) device is not a Entra ID device checks the UUID starting.."
         try {
-            #Read the whitlist file 
-            $content = Get-Content "$PSScriptRoot\uuid.dat"  
+            #Read the whitlist file
+            $content = Get-Content "$PSScriptRoot\uuid.dat"
             if ($content.Contains($DeviceUUID)) {
                 Write-Information "Device with $DeviceUUID found"
-                # TODo 
+                # TODo
                 # Check another source for check the device information
                 #
                 $TrustDevice = $true
             }
             else {
                 Write-Warning "$($DeviceName) device is not allow to rotate passwort with KnightLAPS"
-            }  
+            }
         }
         catch {
             Write-Warning 'KnightLAPS exception: Can not laod UUID.dat'
             $Exception = $true
         }
-        
-        
-        
+
+
+
     }
     else {
         # Is the EntraDeviceID formatted correctly?
         if ($EntraDeviceID -match '^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$') {
-            Write-Output "$($DeviceName) has send an Entra device ID, the next will start..."
-            
+            Write-Information "$($DeviceName) has send an Entra device ID, the next will start..."
+
             # Is the device id registered in entra id
             $URI = "https://graph.microsoft.com/v1.0/devices?`$filter=deviceId eq '$($EntraDeviceID)'"
             $EntraDevice = (Invoke-RestMethod -Method 'Get' -Uri $URI -ContentType 'application/json' -Headers $AuthHeaderGraph -ErrorAction SilentlyContinue).value
@@ -189,16 +190,15 @@ if (-not [string]::IsNullOrEmpty($Request.Body)) {
                 Write-Output "$($DeviceName) Checking thumprint from device with saved item in Entra ID:$($Thumbprint)"
                 $Key = [System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String($EntraDevice.alternativeSecurityIds.key))
                 if ($Key.Split('>')[1].SubString(0, 40) -eq $Thumbprint) {
-                    Write-Output "$($DeviceName) thumbprint check succesfull"
-                    Write-Output "$($DeviceName) Checking if the device is registered in the Entra ID"
-                    if ($true -eq $EntraDevice.accountEnabled) {
-                        Write-Output "$($DeviceName) is trusted and enabled in Entra ID"
-                        $TrustDevice = $true    
+                    Write-Output "$($DeviceName) Device certificate thumbprint check succesfull"
+                  if ($true -eq $EntraDevice.accountEnabled) {
+                        Write-Output "$($DeviceName) is trusted and device is enabled in Entra ID"
+                        $TrustDevice = $true
                     }
                 }
             }
             else {
-                Write-Warning "$($DeviceName) is not in an Entra ID registered"  
+                Write-Warning "$($DeviceName) is not in an Entra ID registered"
             }
         }
         else {
@@ -206,27 +206,27 @@ if (-not [string]::IsNullOrEmpty($Request.Body)) {
         }
     }
 
-    
+
     #
     # All securtiy checks done and the device is trust
     #
-    if ($TrustDevice -eq $True) {   
+    if ($TrustDevice -eq $True) {
 
-        # Gave exception before in process 
+        # Gave exception before in process
         if ($Exception -eq $false) {
 
             # Get Azure Key Vault Key for 1Password
             if (![string]::IsNullOrEmpty($KeyVaultHost) -and ![string]::IsNullOrEmpty($1PasswordAccessTokenName)) {
-            
+
                 try {
                     $KeyVaultURL = 'https://{0}/secrets/{1}?maxresults=1&api-version=7.4' -f $KeyVaultHost, $1PasswordAccessTokenName
-                    $KeyResponse = Invoke-RestMethod -Uri $KeyVaultURL -Method Get -Headers $AuthHeaderVault -ContentType 'application/json;charset=utf-8'  
+                    $KeyResponse = Invoke-RestMethod -Uri $KeyVaultURL -Method Get -Headers $AuthHeaderVault -ContentType 'application/json;charset=utf-8'
                 }
                 catch {
                     Write-Warning 'KnightLAPS exception: Azure Key Vault web call exception'
                     $Exception = $true
                 }
-                
+
                 # Exception from connect to Azure KeyVault and recieved token
                 if ($Exception -eq $false -and ![string]::IsNullOrEmpty($KeyResponse)) {
                     Write-Output "$($DeviceName) Received access permission token for the 1Password service"
@@ -234,25 +234,33 @@ if (-not [string]::IsNullOrEmpty($Request.Body)) {
                         $1PassRespons = Connect-OPWServer -ConnectionHost $1PasswordHost -BearerToken $KeyResponse.value
                         if ($1PassRespons.status -eq 200) {
                             Write-Output "$($DeviceName) 1Password Service connected..."
-                
+
                             #Check is device in one password vault
                             $NewPW = -Join ($PWAllowedCharacters.tochararray() | Get-Random -Count $PWLength | ForEach-Object { [char]$_ })
-                            
+
                             # Get device name from 1password vault
                             $Response = Get-OPWitem -title $DeviceName -VaultUUID $1PasswordVault
-                            
+
                             if ($Response.status -eq '404') {
-                            
-                                #Device is not in Vault and create new entry in 1 password vault      
+
+                                #Device is not in Vault and create new entry in 1 password vault
                                 Write-Information "$($DeviceName) Device not found in 1Password vault, it is created now"
                                 $Entry = New-OPWItemObject -title $DeviceName -VaultUUID $1PasswordVault -Category 'LOGIN'
-                            
+
                                 $Entry.AddLogin($Username, $NewPW)
                                 $Entry.AddText('Serialnumber:', $DeviceSN)
                                 $Entry.AddText('UUID:', $DeviceUUID)
-                                $respons = Add-OPWItem -InputObject $Entry
-                                if ($respons.status -eq 200) {
-                                    Write-Output $respons.message
+                                $Entry
+                                $Entry.fields
+                                $Respons = Add-OPWItem -InputObject $Entry
+                                $Respons.Status
+                                Write-Warning $Respons.Message
+                                if ($Respons.status -eq 200) {
+                                    Write-Output $Respons.message
+                                } else {
+                                    $body = $Response.Message
+                                    $StatusCode = $Response.Status
+                                    Write-Warning $body
                                 }
 
                             }
@@ -270,53 +278,58 @@ if (-not [string]::IsNullOrEmpty($Request.Body)) {
                                         $StatusCode = [HttpStatusCode]::OK
                                         $body = $NewPW
                                     }
-                                   
+
                                 }
                                 else {
-                                    $body = "$($DeviceName) Update from password is not allowed, last password change was long enough ago"
                                     $StatusCode = [HttpStatusCode]::Forbidden
+                                    $body = "$($DeviceName) Update from password is not allowed, last password change was long enough ago"
                                     Write-Warning $body
                                 }
+                            } else {
+                                $body = $Response.Message
+                                $StatusCode = $Response.Status
+                                Write-Warning $body
                             }
-                            # Remove 1Password connection 
+                            # Remove 1Password connection
                             Disconnect-OPWServer
-    
+
                         }
                         else {
-                            $body = '1Password Service {0} cannot establisch the session' -f $1PasswordHost 
                             $StatusCode = [HttpStatusCode]::BadRequest
-                            Write-Warning $($DeviceName) $body
-                        }  
+                            $body = '1Password Service {0} cannot establisch the session' -f $1PasswordHost
+                            Write-Warning "$($DeviceName) $($body)"
+                        }
                     }
                     else {
-                        $body = 'No 1Password host defined in the configuration'
                         $StatusCode = [HttpStatusCode]::BadGateway
-                        Write-Warning $($DeviceName) $body
+                        $body = 'No 1Password host defined in the configuration'
+                        Write-Warning "$($DeviceName) $($body)"
                     }
                 }
                 else {
-                    $body = 'Can´t read 1Password Authkey from Azure Key Vault'
                     $StatusCode = [HttpStatusCode]::BadRequest
-                    Write-Warning $($DeviceName) $body
+                    $body = 'Can´t read 1Password Authkey from Azure Key Vault'
+                    Write-Warning "$($DeviceName) $($body)"
                 }
             }
             else {
-                $body = 'No KeyVault host defined in the configuration or access token missing'
-                Write-Warning $($DeviceName) $body
                 $StatusCode = [HttpStatusCode]::BadRequest
+                $body = 'No KeyVault host defined in the configuration or access token missing'
+                Write-Warning "$($DeviceName) $($body)"
+
             }
         }
     }
     else {
         $StatusCode = [HttpStatusCode]::BadRequest
         $body = "Status $($StatusCode.value__): Device checks and request validation faild, the request is rejected..."
-        Write-Warning $($DeviceName) $body
+        Write-Warning "$($DeviceName) $($body)"
     }
 }
 else {
     $StatusCode = [HttpStatusCode]::BadRequest
     $body = "Status $($StatusCode.value__):  Request body from client is empty"
-    Write-Warning $($DeviceName) $body
+    Write-Warning "$($DeviceName) $($body)"
 }
 Write-Output "$($DeviceName) request handling finished"
 # Associate values to output bindings by calling 'Push-OutputBinding'.
