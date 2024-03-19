@@ -4,10 +4,10 @@
 .DESCRIPTION
     This script is a part of KnightLAPS solution, which handles the password rotation on the device.
 
-    It uses the local administrator account with SID S-1-5-21-*-500 or it used the username from 
+    It uses the local administrator account with SID S-1-5-21-*-500 or it used the username from
     paramet for using. It call Azure Function API for generate new password. For this request, many
-    parameters must be collected from the device. It will be needed for identifying the device in 
-    the Azure Function. If the check okay in the function, get the new password from the function.   
+    parameters must be collected from the device. It will be needed for identifying the device in
+    the Azure Function. If the check okay in the function, get the new password from the function.
 
 .EXAMPLE
     .\KnightLAPSClient.ps1
@@ -26,11 +26,11 @@
 param (
     [Parameter(Mandatory = $false, HelpMessage = "Specify Azure Function host")]
     [ValidateNotNullOrEmpty()]
-    [string] $KnightHost = "localhost:7071", 
+    [string] $KnightHost = "localhost:7071",
 
     [parameter(Mandatory=$false, HelpMessage = "Use specify username, instead of use local administrator")]
     [string]$UserName,
-    
+
     [parameter(Mandatory=$false, HelpMessage = "Change default password length")]
     [int]$PWLength = 10,
 
@@ -41,7 +41,7 @@ param (
 )
 
 # Construct the required URI for the Azure Function URL
-$SetSecretURI = 'http://{0}/api/GetNewSecret?code={1}' -f $KnightHost, $Code
+$SetSecretURI = '{0}/api/GetNewSecret?code={1}' -f $KnightHost, $Code
 
 # Define event log variables
 $EventLogName = 'KnightLAPS-Client'
@@ -58,7 +58,7 @@ function Get-EIDInfo {
     <#
     .SYNOPSIS
     # Collected information from device about Entra ID status
-    
+
     .NOTES
     Author:      Stevie Knight
     Contact:     @StevieKnight
@@ -76,23 +76,23 @@ function Get-EIDInfo {
             PK  = $null
         }
 
-        # First step, get a rigistry key 
+        # First step, get a rigistry key
         $KeyPath = 'HKLM:\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo'
-        $ADKey = Get-ChildItem -Path $KeyPath -ErrorAction SilentlyContinue | Select-Object -ExpandProperty 'PSChildName'  
+        $ADKey = Get-ChildItem -Path $KeyPath -ErrorAction SilentlyContinue | Select-Object -ExpandProperty 'PSChildName'
         if ($ADKey -match '^[A-Z0-9]{40}$') {
-            # Step tow, read ms-organization-access certificate 
+            # Step tow, read ms-organization-access certificate
             $MSOACert = Get-ChildItem -Path 'Cert:\LocalMachine\My' -Recurse | Where-Object { $PSItem.Thumbprint -eq $ADKey }
             if ($null -ne $MSOACert) {
                 Write-EventLog -LogName $EventLogName -Source $EventLogSource -EntryType Information -EventId 10 -Message 'Collecting EID information from the device'
-               
+
                 $Data.PK = [System.Convert]::ToBase64String($MSOACert.GetPublicKey())
                 $Data.TP = $MSOACert.Thumbprint
                 $Data.EID = ($MSOACert | Select-Object -ExpandProperty 'Subject') -replace 'CN=', ''
-               
+
                 return $Data
             }
             else {
-                Write-EventLog -LogName $EventLogName -Source $EventLogSource -EntryType Error -EventId 53 "Certificate with Thumbprint $($ADKey) not found." 
+                Write-EventLog -LogName $EventLogName -Source $EventLogSource -EntryType Error -EventId 53 "Certificate with Thumbprint $($ADKey) not found."
             }
         }
         else {
@@ -113,10 +113,10 @@ $EntraData = Get-EIDInfo
 # Define the local administrator user name
 if ([string]::IsNullOrEmpty($UserName)){
     # Read local admin with identifier S-1-5-21-*-500
-    $LocalUser = Get-LocalUser | Where-Object { $_.SID -like 'S-1-5-21-*-500' -and $_.PrincipalSource -eq 'Local' -and $_.Enabled -eq $true} 
-    
+    $LocalUser = Get-LocalUser | Where-Object { $_.SID -like 'S-1-5-21-*-500' -and $_.PrincipalSource -eq 'Local' -and $_.Enabled -eq $true}
+
 } else {
-    # Read local user object from device 
+    # Read local user object from device
     $LocalUser = Get-LocalUser | Where-Object { $_.Name -match $UserName -and $_.PrincipalSource -eq 'Local' -and $_.Enabled -eq $true }
 }
 
@@ -132,31 +132,32 @@ $DeviceSerialNumber = Get-CimInstance -Class 'Win32_BIOS' | Select-Object -Expan
 $CUUID = get-wmiobject Win32_ComputerSystemProduct | Select-Object -ExpandProperty 'UUID'
 #Build password rotation request
 $RequestPayload = [ordered]@{
-    DeviceName      = $env:COMPUTERNAME 
+    DeviceName      = $env:COMPUTERNAME
     EntraDeviceID   = $EntraData.EID
     CUUID           = $CUUID
     Thumbprint      = $EntraData.TP
     PublicKey       = $EntraData.PK
     Username        = $LocalUser.Name
-    DeviceSN        = $DeviceSerialNumber 
+    DeviceSN        = $DeviceSerialNumber
     PasswordLength  = $PWLength
     DeviceSuffix    = 'DSH'
-    Override        = $true   
+    Override        = $true
 }
-
+$RequestPayload | ConvertTo-Json
 try {
-    
+
     #Calling the Azure function for getting a secret
     Write-EventLog -LogName $EventLogName -Source $EventLogSource -EntryType Information -EventId 11 -Message 'Calling Azure Knight function for password generation and secret update'
-    $Response = Invoke-WebRequest -Method 'POST' -Uri $SetSecretURI -Body ($RequestPayload | ConvertTo-Json) -ContentType 'application/json' -ErrorAction Stop 
-     
+    Write-Output $RequestPayload
+    $Response = Invoke-WebRequest -Method 'POST' -Uri $SetSecretURI -Body ($RequestPayload | ConvertTo-Json) -ContentType 'application/json' -ErrorAction Stop
+    Write-Output $Response
     if (($Response.RawContentLength -gt 0 ) -and $Response.StatusCode -eq 200) {
         Write-EventLog -LogName $EventLogName -Source $EventLogSource -EntryType Information -EventId 10 -Message 'Response from Azure Knight Function '
-            
+
         # Password handling
-        $SPwd = ConvertTo-SecureString -String $Response.Content -AsPlainText -Force                  
+        $SPwd = ConvertTo-SecureString -String $Response.Content -AsPlainText -Force
         Write-EventLog -LogName $EventLogName -Source $EventLogSource -EntryType Information -EventId 10 -Message 'Set new password from KnightLAPS'
-                  
+
         # Password set on account
         try {
             Write-EventLog -LogName $EventLogName -Source $EventLogSource -EntryType Information -EventId 30 -Message 'KnightLAPS: Local administrator account  exists, updating password'
@@ -168,21 +169,23 @@ try {
             else {
                 Set-LocalUser -Name $LocalUser.Name -Password $SPwd -PasswordNeverExpires $true -UserMayChangePassword $false -ErrorAction Stop
             }
-            
+
             # Handle output for extended details in MEM portal
-           
+
         }
         catch [System.Exception] {
             Write-EventLog -LogName $EventLogName -Source $EventLogSource -EntryType Error -EventId 31 -Message "KnightLAPS: Failed to rotate password for '$($LocalUser.Name)' local user account. Error message: $($PSItem.Exception.Message)"
             $ExitCode = 1
-        }   
+        }
 
     }
     else {
-        Write-EventLog -LogName $EventLogName -Source $EventLogSource -EntryType Error -EventId 13 'Unknow response error' 
+        Write-Information -MessageData "ddd"
+        Write-Information -MessageData $Response.Content
+        Write-EventLog -LogName $EventLogName -Source $EventLogSource -EntryType Error -EventId 13 'Unknow response error'
         $ExitCode = 1
     }
-    
+
 }
 
 catch [System.Exception] {
@@ -193,7 +196,7 @@ catch [System.Exception] {
         $reader.BaseStream.Position = 0
         $reader.DiscardBufferedData()
         $errMSG = $reader.ReadToEnd()
-      
+
         switch ($PSItem.Exception.Response.StatusCode) {
             'Forbidden' {
                 Write-EventLog -LogName $EventLogName -Source $EventLogSource -EntryType Warning -EventId 14 -Message "KnightLAPS Forbidden: $errMSG"
@@ -207,7 +210,7 @@ catch [System.Exception] {
                 Write-EventLog -LogName $EventLogName -Source $EventLogSource -EntryType Warning -EventId 14 -Message "KnightLAPS BadRequest: $errMSG"
                 $ExitCode = 1
             }
-        
+
             Default {
                 Write-EventLog -LogName $EventLogName -Source $EventLogSource -EntryType Error -EventId 13 -Message "KnightLAPS: $errMSG"
                 $ExitCode = 1
