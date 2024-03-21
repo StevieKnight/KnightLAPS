@@ -16,6 +16,8 @@ be set.
 
     Version history:
     1.0.0 - (2024-02-04) Script created
+    1.0.1 - 2024-03-21 Update Azure AD to MSGraph SDK
+					   Add Read AzureFunctionName
 #>
 
 # Assign static variables
@@ -26,20 +28,32 @@ param(
     $TenantID,
 
     [Parameter(Mandatory = $true,
-    HelpMessage="Enter the object ID that you want to authorize in MS Graph using MSI.")]
-    $MSIObjectID
+    HelpMessage="Enter the Azure Function Namen that you want to authorize in MS Graph using MSI.")]
+    $AzureFunctionName
 )
+
+$splat = @{
+        TenantId = $TenantID
+        Scopes   = 'application.readwrite.all', 'Approleassignment.readwrite.all', 'Directory.readwrite.all'
+}
+
 # Authenticate against Azure AD, as Global Administrator
-Connect-AzureAD -TenantId $TenantID
+Connect-MgGraph -NoWelcome @splat
 
 $MSGraphAppId = "00000003-0000-0000-c000-000000000000" # Microsoft Graph (graph.microsoft.com) application ID
-$MSGraphServicePrincipal = Get-AzureADServicePrincipal -Filter "appId eq '$($MSGraphAppId)'"
+$MSGraphServicePrincipal = Get-MgServicePrincipal -Filter "appId eq '$($MSGraphAppId)'"
+$KnightLAPSObject = Get-MgServicePrincipal -Filter "DisplayName eq '$($AzureFunctionName)'"
 $RoleNames = @("Device.Read.All")
 
 # Assign each roles to Managed System Identity, first validate they exist
 foreach ($RoleName in $RoleNames) {
     $AppRole = $MSGraphServicePrincipal.AppRoles | Where-Object { $PSItem.Value -eq $RoleName -and $PSItem.AllowedMemberTypes -contains "Application" }
-    if ($null -ne $AppRole) {
-        New-AzureAdServiceAppRoleAssignment -ObjectId $MSIObjectID -PrincipalId $MSIObjectID -ResourceId $MSGraphServicePrincipal.ObjectId -Id $AppRole.Id
+	if ($null -ne $AppRole) {
+		$params = @{
+			principalId = $KnightLAPSObject.Id
+			resourceId = $MSGraphServicePrincipal.Id
+			appRoleId = $AppRole.Id
+		}
+    New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $KnightLAPSObject.Id -BodyParameter $params
     }
 }
