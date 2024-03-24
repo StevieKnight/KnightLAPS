@@ -34,7 +34,7 @@ $TrustDevice = $false
 $Exception = $false
 $StatusCode = [HttpStatusCode]::OK
 $body = ''
-$Request
+
 #1Password settings
 $KeyVaultHost = $env:KeyVaultHost
 $1PasswordHost = $env:OnePasswordHost
@@ -45,7 +45,6 @@ $1PasswordAccessTokenName = $env:OnePasswordAccessTokenName
 $PWAllowedCharacters = $env:PWAllowedCharacters
 $PWMinAge = $env:PWAgeinDay
 
-Write-Output "Hallos"
 if (-not [string]::IsNullOrEmpty($Request.Body)) {
 
     #

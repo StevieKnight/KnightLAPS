@@ -15,7 +15,9 @@ if ($env:MSI_SECRET) {
     Disable-AzContextAutosave -Scope Process | Out-Null
     Connect-AzAccount -Identity
 }
-
+$DebugPreferences = 'Continue'
+$VerbosePreferences = 'Continue'
+$ErrorPreferences = 'Continue'
 # Uncomment the next line to enable legacy AzureRm alias in Azure PowerShell.
 # Enable-AzureRmAlias
 

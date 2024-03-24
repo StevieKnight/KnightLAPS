@@ -1,5 +1,5 @@
-@description('Provide the App registration application identifier.')
-param ApplicationID string
+//@description('Provide the App registration application identifier.')
+//param ApplicationID string
 
 @description('Provide a name for the Function App that consists of alphanumerics. Name must be globally unique in Azure and cannot start or end with a hyphen. e.g. KnightLAPS-Company')
 param KnightLAPSAppName string
@@ -245,12 +245,12 @@ resource OnePasswordAuthTokenSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-0
   }
 }
 
-// Add ZipDeploy for Function App
-//resource FunctionAppZipDeploy 'Microsoft.Web/sites/extensions@2015-08-01' = {
-//  parent: FunctionApp
-//  name: 'ZipDeploy'
-//  properties: {
-//      packageUri: 'https://github.com/StevieKnight/KnightLAPS/blob/main/Packages/KnigthLAPS-Function-APP-current.zip'
-//  }
-//}
+//Add ZipDeploy for Function App
+resource FunctionAppZipDeploy 'Microsoft.Web/sites/extensions@2015-08-01' = {
+  parent: FunctionApp
+  name: 'ZipDeploy'
+  properties: {
+      packageUri: 'https://github.com/StevieKnight/KnightLAPS/raw/main/Packages/KnigthLAPS-Function-APP-current.zip'
+  }
+}
 
