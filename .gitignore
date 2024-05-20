@@ -15,6 +15,9 @@ bin
 obj
 appsettings.json
 local.settings.json
+local.vaults.json
+local.klc.ini
+Client/KLC.ini
 *.cer
 *.pfx
 *.cert

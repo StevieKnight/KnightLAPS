@@ -1,0 +1,23 @@
+{
+    "Location": [
+        {
+            "Name": "HQ",
+            "DeviceType": [
+                {
+                    "Type": "Server",
+                    "Vault": "Name of vault server"
+                },
+                {
+                    "Type": "Client",
+                    "Vault": "Name of vault client"
+                }
+            ]
+        },
+        {
+            "Name": "City",
+            "Vault": "City Clients"
+
+        }
+
+    ]
+}

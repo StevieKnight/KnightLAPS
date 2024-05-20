@@ -1,7 +1,7 @@
 Process {
     # Create new event log if it doesn't already exist
-    $EventName = "KnightLAPS-Client"
-    $EventSource = "KnightLAPS-Client"
+    $EventName = "1KnightLAPS-Client"
+    $EventSource = "1KnightLAPS-Client"
     $KnightLAPSEvent = Get-WinEvent -LogName $EventName -ErrorAction SilentlyContinue
     if ($null -eq $KnightLAPSEvent) {
         try {
