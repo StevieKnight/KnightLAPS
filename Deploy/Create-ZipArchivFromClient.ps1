@@ -29,6 +29,7 @@ if (!(Test-Path $TMPFolder)) {New-Item -Path $TMPFolder -ItemType Directory | Ou
 # Copy files in the temp folder
 Copy-Item -Path "..\Client\Install-KLClient.ps1" -Destination $TMPFolder
 Copy-Item -Path "..\Client\KLC-Example.ini" -Destination  "$($TMPFolder)\KLC.ini"
+Copy-Item -Path "..\Client\KLC.ps1" -Destination  "$($TMPFolder)"
 Copy-Item -Path "..\Client\README.md" -Destination  $TMPFolder
 
 # Compress the contents of the temp folder and save the ZIP file
