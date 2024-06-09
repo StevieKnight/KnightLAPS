@@ -61,7 +61,7 @@ param (
 $ConfigFile = "$PSScriptRoot\KLC.ini"
 
 #Regulare expressions
-$RegHostName = '^(https?):\/\/([a-zA-Z0-9.-]+):(0*[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$'
+$RegHostName = '^(http|https):\/\/(localhost|([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(:\d+)?(\/.*)?$'
 $RegUserName = '^[a-zA-Z0-9_.äöüßÄÖÜ-]{1,20}$'
 $RegPWLength = '^([1-9]|[1-9][0-9]|1[01][0-9]|12[0-8])$'
 $RegDeviceType = '^(Server|Client)$'
