@@ -390,17 +390,16 @@ if (-not [string]::IsNullOrEmpty($Request.Body)) {
                                 $Entry.AddLogin($Username, $NewPW)
                                 $Entry.AddText('Serialnumber:', $DeviceSN)
                                 $Entry.AddText('UUID:', $DeviceUUID)
-                                $Entry.fields
                                 $Respons = Add-OPWItem -InputObject $Entry
-                                $Respons.Status
-                                Write-Warning $Respons.Message
                                 if ($Respons.status -eq 200) {
-                                    Write-Output $Respons.message
+                                    Write-Output "$($DeviceName) $($Username) entry was created in '$($VaultName)' vault"
+                                    $StatusCode = [HttpStatusCode]::OK
+                                    $body = $NewPW
                                 }
                                 else {
                                     $body = $Response.Message
                                     $StatusCode = $Response.Status
-                                    Write-Warning $body
+                                    Write-Warning "$($DeviceName) $($Username) entry can not created in '$($VaultName)' vault. $($body)"
                                 }
 
                             }
@@ -418,6 +417,10 @@ if (-not [string]::IsNullOrEmpty($Request.Body)) {
                                         Write-Output "$($DeviceName) $($Username) entry updated in '$($VaultName)' vault"
                                         $StatusCode = [HttpStatusCode]::OK
                                         $body = $NewPW
+                                    } else {
+                                        $body = $Response.Message
+                                        $StatusCode = $Response.Status
+                                        Write-Warning "$($DeviceName) $($Username) entry can not updated in '$($VaultName)' vault. $($body)"
                                     }
                                 }
                                 else {

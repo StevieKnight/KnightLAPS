@@ -175,8 +175,8 @@ resource FunctionApp 'Microsoft.Web/sites@2020-12-01' = {
           value: 'False'
         }
         {
-          name: 'VaultUUID'
-          value: VaultUUID
+          name: 'VaultFile'
+          value: 'vaults.json'
         }
         {
           name: 'KeyVaultHost'

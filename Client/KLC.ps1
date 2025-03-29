@@ -229,13 +229,13 @@ if (Get-HasScriptAdminRights) {
     $EntraData = Get-EIDInfo
 
     # Define the local administrator user name
-    if ([string]::IsNullOrEmpty($UserName)){
+    if ($Username -eq "LOCALGOD"){
         # Read local admin with identifier S-1-5-21-*-500
         $LocalUser = Get-LocalUser | Where-Object { $_.SID -like 'S-1-5-21-*-500' -and $_.PrincipalSource -eq 'Local' -and $_.Enabled -eq $true}
 
     } else {
         # Read local user object from device
-        $LocalUser = Get-LocalUser | Where-Object { $_.Name -eq $UserName -and $_.PrincipalSource -eq 'Local' -and $_.Enabled -eq $true }
+        $LocalUser = Get-LocalUser | Where-Object { $_.Name -eq $UserName -and $_.Enabled -eq $true }
     }
 
     if (! $LocalUser.count -eq 1){
@@ -270,7 +270,7 @@ if (Get-HasScriptAdminRights) {
         Write-EventLog -LogName $EventLogName -Source $EventLogSource -EntryType Information -EventId 1020 -Message "Send a web request to $($KnightHost) endpoint to generate a password and update the secret"
         Write-Debugging -Message "Request send to $($KnightHost):"
         Write-Debugging -Message "$($RequestPayload | ConvertTo-Json)"
-        $Response = Invoke-WebRequest -Method 'POST' -Uri $SetSecretURI -Body ($RequestPayload | ConvertTo-Json) -ContentType 'application/json' -ErrorAction Stop
+        $Response = Invoke-WebRequest -Method 'POST' -Uri $SetSecretURI -Body ($RequestPayload | ConvertTo-Json) -ContentType 'application/json' -UseBasicParsing -ErrorAction Stop
         Write-Debugging -Message "Response from to $($KnightHost):"
         Write-Debugging -Message $Response.RawContent
         if (($Response.RawContentLength -gt 0 ) -and $Response.StatusCode -eq 200) {
