@@ -15,7 +15,14 @@
 
     Version history:
     1.0.0 - (2024-04-21) Script created
+    1.0.1 - 2025-03-30  Add parameter for install azure function code
 #>
+
+[CmdletBinding()]
+param (
+    [parameter(Mandatory=$false, HelpMessage = "Azure Function security code")]
+    [string]$Code = ''
+)
 
 #Variables
 $Application    = "KnightLAPS"
@@ -114,7 +121,16 @@ foreach ($Task in $ConfigObj.Tasks) {
     try {
         $TaskNameUser = $TaskName + "-" + $Task.UserName
         if (! (Get-ScheduledTask | Where-Object { $_.TaskName -eq $TaskNameUser })) {
-            $Action = New-ScheduledTaskAction -Execute "$PSHOME\PowerShell.exe" -Argument " -NoLogo -NoProfile -WindowStyle Hidden -File $KnightFolder\KLC.ps1 -TaskID 1"
+            $TaskArgs = @(
+                "-NoLogo",
+                "-NoProfile",
+                "-WindowStyle Hidden",
+                "-File `"$KnightFolder\KLC.ps1`"",
+                "-TaskID 1"
+              ) -join ' '
+
+
+            $Action = New-ScheduledTaskAction -Execute "$PSHOME\PowerShell.exe" -Argument $TaskArgs
             $Trigger = New-ScheduledTaskTrigger -Weekly -WeeksInterval $Task.WeeksInterval -DaysOfWeek $Task.DaysOfWeek -At $Task.RunTaskOnClock -RandomDelay (New-TimeSpan -Minutes 30)
             $settings = New-ScheduledTaskSettingsSet -RestartCount:5 -RestartInterval (New-TimeSpan -Minutes 15) -Priority 7 `
             -StartWhenAvailable `
